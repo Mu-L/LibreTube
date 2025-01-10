@@ -29,24 +29,19 @@
             app:title="@string/color_accent"
             app:useSimpleSummaryProvider="true" />
 
-        <ListPreference
-            android:icon="@drawable/ic_frame"
-            app:defaultValue="MainActivity"
-            app:entries="@array/icons"
-            app:entryValues="@array/iconsValue"
-            app:key="icon_change"
-            app:title="@string/app_icon"
-            app:useSimpleSummaryProvider="true" />
-
         <Preference
-            android:icon="@drawable/ic_home"
-            app:key="nav_bar_items"
-            app:title="@string/navigation_bar" />
-
+            android:icon="@drawable/ic_frame"
+            app:key="icon_change"
+            app:title="@string/app_icon" />
 
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="@string/app_behavior">
+    <PreferenceCategory app:title="@string/navigation_bar">
+
+        <Preference
+            android:icon="@drawable/ic_home"
+            app:key="navbar_items"
+            app:title="@string/navbar_order" />
 
         <ListPreference
             android:icon="@drawable/ic_label"
@@ -57,33 +52,17 @@
             app:title="@string/navLabelVisibility"
             app:useSimpleSummaryProvider="true" />
 
-        <ListPreference
-            android:icon="@drawable/ic_grid"
-            app:defaultValue="@integer/grid_items"
-            app:entries="@array/grid"
-            app:entryValues="@array/grid"
-            app:key="grid"
-            app:title="@string/grid"
-            app:useSimpleSummaryProvider="true" />
-
     </PreferenceCategory>
 
-    <PreferenceCategory app:title="@string/player">
+    <PreferenceCategory app:title="@string/layout">
 
-        <SwitchPreferenceCompat
-            android:icon="@drawable/ic_caption"
-            app:defaultValue="true"
-            app:key="system_caption_style"
-            app:title="@string/system_caption_style" />
-
-        <Preference
-            android:icon="@drawable/ic_settings"
-            app:key="caption_settings"
-            app:title="@string/caption_settings" />
-
-    </PreferenceCategory>
-
-    <PreferenceCategory app:title="@string/misc">
+        <MultiSelectListPreference
+            android:entries="@array/homeTabItems"
+            android:entryValues="@array/homeTabItemsValues"
+            android:icon="@drawable/ic_awesome"
+            android:key="home_tab_content"
+            android:title="@string/home_tab_content"
+            app:defaultValue="@array/homeTabItemsValues" />
 
         <SwitchPreferenceCompat
             app:defaultValue="false"
@@ -103,8 +82,26 @@
         <SwitchPreferenceCompat
             android:icon="@drawable/ic_trending"
             app:defaultValue="false"
-            app:key="trending_layout"
-            app:title="@string/trending_layout" />
+            app:key="alternative_videos_layout"
+            app:title="@string/alternative_videos_layout" />
+
+        <ListPreference
+            android:icon="@drawable/ic_grid"
+            app:defaultValue="@integer/grid_items"
+            app:entries="@array/grid"
+            app:entryValues="@array/grid"
+            app:key="grid"
+            app:title="@string/grid"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            android:icon="@drawable/ic_grid"
+            app:defaultValue="@integer/grid_items_landscape"
+            app:entries="@array/grid"
+            app:entryValues="@array/grid"
+            app:key="grid_landscape"
+            app:title="@string/grid_landscape"
+            app:useSimpleSummaryProvider="true" />
 
     </PreferenceCategory>
 
