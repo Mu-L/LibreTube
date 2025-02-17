@@ -1,16 +1,16 @@
 package com.github.libretube.ui.adapters
 
 import android.view.LayoutInflater
+import android.view.MenuItem
 import android.view.ViewGroup
-import android.widget.Toast
 import androidx.recyclerview.widget.RecyclerView
 import com.github.libretube.R
 import com.github.libretube.databinding.NavOptionsItemBinding
-import com.github.libretube.obj.NavBarItem
 import com.github.libretube.ui.viewholders.NavBarOptionsViewHolder
 
 class NavBarOptionsAdapter(
-    val items: MutableList<NavBarItem>
+    val items: MutableList<MenuItem>,
+    var selectedHomeTabId: Int
 ) : RecyclerView.Adapter<NavBarOptionsViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): NavBarOptionsViewHolder {
@@ -22,31 +22,29 @@ class NavBarOptionsAdapter(
         return NavBarOptionsViewHolder(binding)
     }
 
-    override fun getItemCount(): Int {
-        return items.size
-    }
+    override fun getItemCount() = items.size
 
     override fun onBindViewHolder(holder: NavBarOptionsViewHolder, position: Int) {
         val item = items[position]
         holder.binding.apply {
             title.text = item.title
-            checkbox.isChecked = item.isEnabled
-            checkbox.setOnClickListener {
-                if (!checkbox.isChecked && getEnabledItemsCount() < 2) {
-                    checkbox.isChecked = true
-                    Toast.makeText(
-                        root.context,
-                        R.string.select_at_least_one,
-                        Toast.LENGTH_SHORT
-                    ).show()
+            checkbox.isChecked = item.isVisible
+            home.setImageResource(
+                if (item.itemId == selectedHomeTabId) R.drawable.ic_home_dark else R.drawable.ic_home_outlined
+            )
+            home.setOnClickListener {
+                if (selectedHomeTabId == item.itemId) {
                     return@setOnClickListener
                 }
-                items[position].isEnabled = checkbox.isChecked
+                val oldSelection = items.indexOfFirst { it.itemId == selectedHomeTabId }
+                selectedHomeTabId = item.itemId
+                listOf(position, oldSelection).forEach {
+                    notifyItemChanged(it)
+                }
+            }
+            checkbox.setOnClickListener {
+                item.isVisible = checkbox.isChecked
             }
         }
-    }
-
-    private fun getEnabledItemsCount(): Int {
-        return items.filter { it.isEnabled }.size
     }
 }

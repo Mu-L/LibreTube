@@ -2,83 +2,91 @@ package com.github.libretube.ui.dialogs
 
 import android.app.Dialog
 import android.os.Bundle
-import android.util.Log
 import android.widget.Toast
+import androidx.core.os.bundleOf
 import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.setFragmentResult
 import androidx.lifecycle.lifecycleScope
 import com.github.libretube.R
-import com.github.libretube.api.RetrofitInstance
+import com.github.libretube.api.PlaylistsHelper
+import com.github.libretube.constants.IntentData
 import com.github.libretube.databinding.DialogCreatePlaylistBinding
-import com.github.libretube.extensions.TAG
-import com.github.libretube.ui.fragments.LibraryFragment
-import com.github.libretube.util.PreferenceHelper
-import com.github.libretube.util.ThemeHelper
+import com.github.libretube.extensions.toastFromMainDispatcher
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import retrofit2.HttpException
-import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 class CreatePlaylistDialog : DialogFragment() {
-    private var token: String = ""
-    private lateinit var binding: DialogCreatePlaylistBinding
-
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        binding = DialogCreatePlaylistBinding.inflate(layoutInflater)
+        val binding = DialogCreatePlaylistBinding.inflate(layoutInflater)
 
-        binding.title.text = ThemeHelper.getStyledAppName(requireContext())
+        binding.clonePlaylist.setOnClickListener {
+            val playlistUrl = binding.playlistUrl.text.toString().toHttpUrlOrNull()
+            val appContext = context?.applicationContext
 
-        binding.cancelButton.setOnClickListener {
-            dismiss()
+            playlistUrl?.queryParameter("list")?.let {
+                lifecycleScope.launch {
+                    requireDialog().hide()
+                    val playlistId = withContext(Dispatchers.IO) {
+                        runCatching {
+                            PlaylistsHelper.clonePlaylist(it)
+                        }.getOrNull()
+                    }
+                    if (playlistId != null) {
+                        setFragmentResult(
+                            CREATE_PLAYLIST_DIALOG_REQUEST_KEY,
+                            bundleOf(IntentData.playlistTask to true)
+                        )
+                    }
+                    appContext?.toastFromMainDispatcher(
+                        if (playlistId != null) R.string.playlistCloned else R.string.server_error
+                    )
+                    dismiss()
+                }
+            } ?: run {
+                Toast.makeText(context, R.string.invalid_url, Toast.LENGTH_SHORT).show()
+            }
         }
 
-        token = PreferenceHelper.getToken()
-
         binding.createNewPlaylist.setOnClickListener {
-            // avoid creating the same playlist multiple times by spamming the button
-            binding.createNewPlaylist.setOnClickListener(null)
-            val listName = binding.playlistName.text.toString()
-            if (listName != "") {
-                createPlaylist(listName)
+            val appContext = context?.applicationContext
+            val listName = binding.playlistName.text?.toString()
+            if (!listName.isNullOrEmpty()) {
+                // avoid creating the same playlist multiple times by spamming the button
+                binding.createNewPlaylist.setOnClickListener(null)
+                lifecycleScope.launch {
+                    requireDialog().hide()
+                    val playlistId = withContext(Dispatchers.IO) {
+                        runCatching {
+                            PlaylistsHelper.createPlaylist(listName)
+                        }.getOrNull()
+                    }
+                    appContext?.toastFromMainDispatcher(
+                        if (playlistId != null) R.string.playlistCreated else R.string.unknown_error
+                    )
+                    playlistId?.let {
+                        setFragmentResult(
+                            CREATE_PLAYLIST_DIALOG_REQUEST_KEY,
+                            bundleOf(IntentData.playlistTask to true)
+                        )
+                    }
+                    dismiss()
+                }
             } else {
                 Toast.makeText(context, R.string.emptyPlaylistName, Toast.LENGTH_LONG).show()
             }
         }
 
         return MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.createPlaylist)
             .setView(binding.root)
+            .setNegativeButton(R.string.cancel, null)
             .show()
     }
 
-    private fun createPlaylist(name: String) {
-        lifecycleScope.launchWhenCreated {
-            val response = try {
-                RetrofitInstance.authApi.createPlaylist(
-                    token,
-                    com.github.libretube.api.obj.Playlists(name = name)
-                )
-            } catch (e: IOException) {
-                println(e)
-                Log.e(TAG(), "IOException, you might not have internet connection")
-                Toast.makeText(context, R.string.unknown_error, Toast.LENGTH_SHORT).show()
-                return@launchWhenCreated
-            } catch (e: HttpException) {
-                Log.e(TAG(), "HttpException, unexpected response $e")
-                Toast.makeText(context, R.string.server_error, Toast.LENGTH_SHORT).show()
-                return@launchWhenCreated
-            }
-            if (response.playlistId != null) {
-                Toast.makeText(context, R.string.playlistCreated, Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(context, getString(R.string.unknown_error), Toast.LENGTH_SHORT)
-                    .show()
-            }
-            // refresh the playlists in the library
-            try {
-                val parent = parentFragment as LibraryFragment
-                parent.fetchPlaylists()
-            } catch (e: Exception) {
-                Log.e(TAG(), e.toString())
-            }
-            dismiss()
-        }
+    companion object {
+        const val CREATE_PLAYLIST_DIALOG_REQUEST_KEY = "create_playlist_dialog_request_key"
     }
 }

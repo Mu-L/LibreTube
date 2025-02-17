@@ -6,10 +6,11 @@ This represents the larger, bigger impact features and enhancements we have plan
 Feel free to help us if you have any knowledge concerning the following planned features or anything else you imagine.
 
 ## Planned
-- Support for local playlists
-- Various smaller features
+- Currently only various smaller features
 
 ## Not planned
 - Google/MicroG Login
-- Support for anything else than Android (like iOS, Linux)
-- Support for Android TV
+- Support for anything else than Android on mobile devices (like iOS, Linux, Android TV)
+- Direct Scraping without Piped (e.g. by using NewPipe Extractor directly).
+- Downloading and muxing media for playback outside of LibreTube
+- Intelligent recommendation algorithm to pull users into a rabbit hole

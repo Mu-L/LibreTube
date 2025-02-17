@@ -11,6 +11,15 @@
     android:paddingEnd="0dp"
     tools:gravity="start|center_vertical">
 
+    <ImageView
+        android:id="@+id/home"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:paddingHorizontal="10dp"
+        android:src="@drawable/ic_home_outlined"
+        tools:ignore="ContentDescription" />
+
     <com.google.android.material.checkbox.MaterialCheckBox
         android:id="@+id/checkbox"
         style="@style/Widget.Material3.CompoundButton.CheckBox"
@@ -43,7 +52,7 @@
         android:focusable="false"
         android:padding="16dp"
         android:tintMode="src_in"
-        app:srcCompat="@drawable/ic_drag"
+        app:srcCompat="@drawable/ic_drag_handle"
         app:tint="?attr/colorControlNormal"
         tools:ignore="ContentDescription" />
 

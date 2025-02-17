@@ -1,42 +1,27 @@
 package com.github.libretube.ui.adapters
 
-import android.app.Activity
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
-import androidx.fragment.app.FragmentManager
-import androidx.recyclerview.widget.RecyclerView
+import androidx.core.os.bundleOf
+import androidx.recyclerview.widget.ListAdapter
 import com.github.libretube.R
-import com.github.libretube.api.RetrofitInstance
+import com.github.libretube.api.obj.Playlists
+import com.github.libretube.constants.IntentData
 import com.github.libretube.databinding.PlaylistsRowBinding
-import com.github.libretube.extensions.TAG
+import com.github.libretube.enums.PlaylistType
+import com.github.libretube.helpers.ImageHelper
+import com.github.libretube.helpers.NavigationHelper
+import com.github.libretube.ui.adapters.callbacks.DiffUtilItemCallback
+import com.github.libretube.ui.base.BaseActivity
 import com.github.libretube.ui.sheets.PlaylistOptionsBottomSheet
+import com.github.libretube.ui.sheets.PlaylistOptionsBottomSheet.Companion.PLAYLIST_OPTIONS_REQUEST_KEY
 import com.github.libretube.ui.viewholders.PlaylistsViewHolder
-import com.github.libretube.util.ImageHelper
-import com.github.libretube.util.NavigationHelper
-import com.github.libretube.util.PreferenceHelper
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import retrofit2.HttpException
-import java.io.IOException
 
 class PlaylistsAdapter(
-    private val playlists: MutableList<com.github.libretube.api.obj.Playlists>,
-    private val childFragmentManager: FragmentManager,
-    private val activity: Activity
-) : RecyclerView.Adapter<PlaylistsViewHolder>() {
-
-    override fun getItemCount(): Int {
-        return playlists.size
-    }
-
-    fun updateItems(newItems: List<com.github.libretube.api.obj.Playlists>) {
-        val oldSize = playlists.size
-        playlists.addAll(newItems)
-        notifyItemRangeInserted(oldSize, playlists.size)
-    }
+    private val playlistType: PlaylistType
+) : ListAdapter<Playlists, PlaylistsViewHolder>(
+    DiffUtilItemCallback(areItemsTheSame = { oldItem, newItem -> oldItem.id == newItem.id })
+) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PlaylistsViewHolder {
         val layoutInflater = LayoutInflater.from(parent.context)
@@ -45,38 +30,62 @@ class PlaylistsAdapter(
     }
 
     override fun onBindViewHolder(holder: PlaylistsViewHolder, position: Int) {
-        val playlist = playlists[position]
+        val playlist = getItem(holder.bindingAdapterPosition)
         holder.binding.apply {
             // set imageview drawable as empty playlist if imageview empty
-            if (playlist.thumbnail!!.split("/").size <= 4) {
+            if (playlist.thumbnail.orEmpty().split("/").size <= 4) {
                 playlistThumbnail.setImageResource(R.drawable.ic_empty_playlist)
-                playlistThumbnail.setBackgroundColor(R.attr.colorSurface)
+                playlistThumbnail
+                    .setBackgroundColor(com.google.android.material.R.attr.colorSurface)
             } else {
                 ImageHelper.loadImage(playlist.thumbnail, playlistThumbnail)
             }
             playlistTitle.text = playlist.name
-            deletePlaylist.setOnClickListener {
-                val builder = MaterialAlertDialogBuilder(root.context)
-                builder.setTitle(R.string.deletePlaylist)
-                builder.setMessage(R.string.areYouSure)
-                builder.setPositiveButton(R.string.yes) { _, _ ->
-                    PreferenceHelper.getToken()
-                    deletePlaylist(playlist.id!!, position)
-                }
-                builder.setNegativeButton(R.string.cancel, null)
-                builder.show()
-            }
+            playlistDescription.text = playlist.shortDescription
+
+            videoCount.text = playlist.videos.toString()
+
             root.setOnClickListener {
-                NavigationHelper.navigatePlaylist(root.context, playlist.id, true)
+                NavigationHelper.navigatePlaylist(root.context, playlist.id, playlistType)
             }
 
+            val fragmentManager = (root.context as BaseActivity).supportFragmentManager
             root.setOnLongClickListener {
-                val playlistOptionsDialog = PlaylistOptionsBottomSheet(
-                    playlistId = playlist.id!!,
-                    isOwner = true
+                fragmentManager.setFragmentResultListener(
+                    PLAYLIST_OPTIONS_REQUEST_KEY,
+                    (root.context as BaseActivity)
+                ) { _, resultBundle ->
+                    val newPlaylistDescription =
+                        resultBundle.getString(IntentData.playlistDescription)
+                    val newPlaylistName =
+                        resultBundle.getString(IntentData.playlistName)
+                    val isPlaylistToBeDeleted =
+                        resultBundle.getBoolean(IntentData.playlistTask)
+
+                    newPlaylistDescription?.let {
+                        playlistDescription.text = it
+                        playlist.shortDescription = it
+                    }
+
+                    newPlaylistName?.let {
+                        playlistTitle.text = it
+                        playlist.name = it
+                    }
+
+                    if (isPlaylistToBeDeleted) {
+                        // try to refresh the playlists in the library on deletion success
+                        onDelete(position)
+                    }
+                }
+
+                val playlistOptionsDialog = PlaylistOptionsBottomSheet()
+                playlistOptionsDialog.arguments = bundleOf(
+                    IntentData.playlistId to playlist.id!!,
+                    IntentData.playlistName to playlist.name!!,
+                    IntentData.playlistType to playlistType
                 )
                 playlistOptionsDialog.show(
-                    childFragmentManager,
+                    fragmentManager,
                     PlaylistOptionsBottomSheet::class.java.name
                 )
                 true
@@ -84,32 +93,10 @@ class PlaylistsAdapter(
         }
     }
 
-    private fun deletePlaylist(id: String, position: Int) {
-        CoroutineScope(Dispatchers.IO).launch {
-            val response = try {
-                RetrofitInstance.authApi.deletePlaylist(
-                    PreferenceHelper.getToken(),
-                    com.github.libretube.api.obj.PlaylistId(id)
-                )
-            } catch (e: IOException) {
-                println(e)
-                Log.e(TAG(), "IOException, you might not have internet connection")
-                return@launch
-            } catch (e: HttpException) {
-                Log.e(TAG(), "HttpException, unexpected response")
-                return@launch
-            }
-            try {
-                if (response.message == "ok") {
-                    playlists.removeAt(position)
-                    activity.runOnUiThread {
-                        notifyItemRemoved(position)
-                        notifyItemRangeChanged(position, itemCount)
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG(), e.toString())
-            }
+    private fun onDelete(position: Int) {
+        val newList = currentList.toMutableList().also {
+            it.removeAt(position)
         }
+        submitList(newList)
     }
 }

@@ -1,11 +1,15 @@
 package com.github.libretube.api.obj
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+import kotlinx.serialization.Serializable
 
-@JsonIgnoreProperties(ignoreUnknown = true)
+@Serializable
+@Parcelize
 data class Playlists(
-    var id: String? = null,
+    val id: String? = null,
     var name: String? = null,
     var shortDescription: String? = null,
-    var thumbnail: String? = null
-)
+    val thumbnail: String? = null,
+    val videos: Long = 0
+) : Parcelable
