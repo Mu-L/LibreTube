@@ -2,11 +2,24 @@ package com.github.libretube.helpers
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
+import com.github.libretube.LibreTubeApp
+import com.github.libretube.R
 import com.github.libretube.constants.PreferenceKeys
+import com.github.libretube.enums.SbSkipOptions
 
 object PreferenceHelper {
+    private val TAG = PreferenceHelper::class.simpleName
+
+    /**
+     * Preference migration from [fromVersion] to [toVersion].
+     */
+    private class PreferenceMigration(
+        val fromVersion: Int, val toVersion: Int, val onMigration: () -> Unit
+    )
+
     /**
      * for normal preferences
      */
@@ -23,11 +36,50 @@ object PreferenceHelper {
     private const val USER_ID_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890"
 
     /**
+     * Migrations required to migrate the application to a newer preference version.
+     * The version is automatically determined from the number of migrations available.
+     */
+    private val MIGRATIONS = arrayOf(
+        PreferenceMigration(0, 1) {
+            LibreTubeApp.instance.resources
+                .getStringArray(R.array.sponsorBlockSegments)
+                .forEach { category ->
+                    val key = "${category}_category"
+                    val stored = getString(key, "visible")
+                    if (stored == "visible") {
+                        putString(key, SbSkipOptions.MANUAL.name.lowercase())
+                    }
+                }
+        },
+    )
+
+    /**
      * set the context that is being used to access the shared preferences
      */
     fun initialize(context: Context) {
         settings = getDefaultSharedPreferences(context)
         authSettings = getAuthenticationPreferences(context)
+    }
+
+    /**
+     * Migrate preference to a new version.
+     */
+    fun migrate() {
+        var currentPrefVersion = getInt(PreferenceKeys.PREFERENCE_VERSION, 0)
+
+        while (currentPrefVersion < MIGRATIONS.count()) {
+            val next = currentPrefVersion + 1
+
+            val migration =
+                MIGRATIONS.find { it.fromVersion == currentPrefVersion && it.toVersion == next }
+            Log.i(TAG, "Performing migration from $currentPrefVersion to $next")
+            migration?.onMigration?.invoke()
+
+            currentPrefVersion++
+            // mark as successfully migrated
+            putInt(PreferenceKeys.PREFERENCE_VERSION, currentPrefVersion)
+        }
+
     }
 
     fun putString(key: String, value: String) {
